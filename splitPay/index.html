@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>더치페이 계산기</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>더치페이 계산기</h1>
+        
+        <!-- 참가자 관리 섹션 -->
+        <section class="participants-section">
+            <h2>참가자 관리</h2>
+            <div class="input-group">
+                <input type="text" id="participantName" placeholder="참가자 이름을 입력하세요">
+                <button onclick="addParticipant()" class="btn-primary">추가</button>
+            </div>
+            <div class="participants-list" id="participantsList">
+                <!-- 참가자 목록이 여기에 표시됩니다 -->
+            </div>
+        </section>
+
+        <!-- 지출 내역 섹션 -->
+        <section class="expenses-section">
+            <h2>지출 내역 추가</h2>
+            <div class="expense-form">
+                <div class="input-group">
+                    <input type="text" id="expenseName" placeholder="항목 이름 (예: 점심식사)">
+                </div>
+                <div class="input-group">
+                    <input type="number" id="expenseAmount" placeholder="금액" min="0">
+                </div>
+                <div class="input-group">
+                    <select id="expensePayer">
+                        <option value="">지불한 사람 선택</option>
+                        <!-- JavaScript로 참가자 목록이 채워집니다 -->
+                    </select>
+                </div>
+                <button onclick="addExpense()" class="btn-primary">지출 추가</button>
+            </div>
+            
+            <div class="expenses-list" id="expensesList">
+                <!-- 지출 목록이 여기에 표시됩니다 -->
+            </div>
+        </section>
+
+        <!-- 계산 결과 섹션 -->
+        <section class="results-section">
+            <div class="summary-box">
+                <h3>계산 결과</h3>
+                <div class="summary-item">
+                    <span>총 금액:</span>
+                    <span id="totalAmount">0원</span>
+                </div>
+                <div class="summary-item">
+                    <span>참가자 수:</span>
+                    <span id="participantCount">0명</span>
+                </div>
+                <div class="summary-item">
+                    <span>1인당 부담금:</span>
+                    <span id="perPersonAmount">0원</span>
+                </div>
+            </div>
+
+            <div class="settlement-box" id="settlementBox">
+                <h3>정산 결과</h3>
+                <div id="settlementResults">
+                    <!-- 정산 결과가 여기에 표시됩니다 -->
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
