@@ -8,70 +8,149 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>더치페이 계산기</h1>
-        
-        <!-- 참가자 관리 섹션 -->
-        <section class="participants-section">
-            <h2>참가자 관리</h2>
-            <div class="input-group">
-                <input type="text" id="participantName" placeholder="참가자 이름을 입력하세요">
-                <button onclick="addParticipant()" class="btn-primary">추가</button>
-            </div>
-            <div class="participants-list" id="participantsList">
-                <!-- 참가자 목록이 여기에 표시됩니다 -->
-            </div>
-        </section>
-
-        <!-- 지출 내역 섹션 -->
-        <section class="expenses-section">
-            <h2>지출 내역 추가</h2>
-            <div class="expense-form">
-                <div class="input-group">
-                    <input type="text" id="expenseName" placeholder="항목 이름 (예: 점심식사)">
-                </div>
-                <div class="input-group">
-                    <input type="number" id="expenseAmount" placeholder="금액" min="0">
-                </div>
-                <div class="input-group">
-                    <select id="expensePayer">
-                        <option value="">지불한 사람 선택</option>
-                        <!-- JavaScript로 참가자 목록이 채워집니다 -->
+    <div class="app-container">
+        <!-- 헤더 -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>더치페이</h1>
+                <div class="header-controls">
+                    <select id="profileSelect" class="profile-select" onchange="changeProfile()">
+                        <!-- 프로필 목록이 여기에 채워집니다 -->
                     </select>
+                    <button onclick="goToProfileManagement()" class="btn-icon" title="프로필 관리">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
                 </div>
-                <button onclick="addExpense()" class="btn-primary">지출 추가</button>
             </div>
-            
-            <div class="expenses-list" id="expensesList">
-                <!-- 지출 목록이 여기에 표시됩니다 -->
-            </div>
-        </section>
+        </header>
 
-        <!-- 계산 결과 섹션 -->
-        <section class="results-section">
-            <div class="summary-box">
-                <h3>계산 결과</h3>
-                <div class="summary-item">
-                    <span>총 금액:</span>
-                    <span id="totalAmount">0원</span>
+        <!-- 메인 콘텐츠 -->
+        <main class="app-main">
+            <!-- 카테고리 선택 -->
+            <section class="category-section">
+                <div class="section-header">
+                    <select id="categorySelect" class="category-select" onchange="changeCategory()">
+                        <option value="default">기본 카테고리</option>
+                    </select>
+                    <button onclick="showAddCategory()" class="btn-add">+ 새 카테고리</button>
                 </div>
-                <div class="summary-item">
-                    <span>참가자 수:</span>
-                    <span id="participantCount">0명</span>
+                <div id="addCategoryForm" class="add-form" style="display: none;">
+                    <input type="text" id="newCategoryName" placeholder="카테고리 이름" maxlength="20">
+                    <div class="form-actions">
+                        <button onclick="addCategory()" class="btn-primary">추가</button>
+                        <button onclick="hideAddCategory()" class="btn-secondary">취소</button>
+                    </div>
                 </div>
-                <div class="summary-item">
-                    <span>1인당 부담금:</span>
-                    <span id="perPersonAmount">0원</span>
-                </div>
-            </div>
+            </section>
 
-            <div class="settlement-box" id="settlementBox">
-                <h3>정산 결과</h3>
-                <div id="settlementResults">
-                    <!-- 정산 결과가 여기에 표시됩니다 -->
+            <!-- 참가자 관리 -->
+            <section class="participants-section">
+                <h2>참가자</h2>
+                <div class="add-form">
+                    <input type="text" id="participantName" placeholder="이름을 입력하세요" maxlength="15">
+                    <button onclick="addParticipant()" class="btn-primary">추가</button>
+                </div>
+                <div id="participantsList" class="tags-container">
+                    <!-- 참가자 목록 -->
+                </div>
+            </section>
+
+            <!-- 지출 추가 -->
+            <section class="expense-section">
+                <h2>지출 추가</h2>
+                <div class="expense-form">
+                    <input type="text" id="expenseName" placeholder="항목 이름" maxlength="30">
+                    <input type="number" id="expenseAmount" placeholder="금액" min="0">
+                    <select id="expensePayer" class="payer-select">
+                        <option value="">지불한 사람</option>
+                    </select>
+                    <textarea id="expenseMemo" placeholder="메모 (선택사항)" rows="2" maxlength="100"></textarea>
+                    <button onclick="addExpense()" class="btn-primary btn-full">지출 추가</button>
+                </div>
+            </section>
+
+            <!-- 지출 목록 -->
+            <section class="expense-list-section">
+                <div class="section-header">
+                    <h2>지출 내역</h2>
+                    <button onclick="resetCurrentCategory()" class="btn-reset">초기화</button>
+                </div>
+                <div id="expensesList" class="expenses-container">
+                    <!-- 지출 목록 -->
+                </div>
+            </section>
+
+            <!-- 계산 결과 -->
+            <section class="results-section">
+                <div class="summary-card">
+                    <div class="summary-row">
+                        <span>총 금액</span>
+                        <span id="totalAmount" class="amount-text">¥0</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>참가자</span>
+                        <span id="participantCount">0명</span>
+                    </div>
+                    <div class="summary-row highlight">
+                        <span>1인당 부담</span>
+                        <span id="perPersonAmount" class="amount-text">¥0</span>
+                    </div>
+                </div>
+
+                <!-- 정산 결과 -->
+                <div class="settlement-card">
+                    <h3>정산 결과</h3>
+                    <div id="settlementResults" class="settlement-container">
+                        <!-- 정산 결과 -->
+                    </div>
+                    <div id="paypayActions" class="paypay-section" style="display: none;">
+                        <button onclick="openPayPay()" class="btn-paypay">
+                            <span class="paypay-icon">💰</span>
+                            PayPay로 보내기
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 지출 수정 모달 -->
+    <div id="expenseModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>지출 수정</h3>
+                <button onclick="closeExpenseModal()" class="modal-close">×</button>
+            </div>
+            <form class="modal-form">
+                <input type="text" id="editExpenseName" placeholder="항목 이름" class="form-input">
+                <input type="number" id="editExpenseAmount" placeholder="금액" min="0" class="form-input">
+                <select id="editExpensePayer" class="form-input">
+                    <!-- 참가자 목록 -->
+                </select>
+                <textarea id="editExpenseMemo" placeholder="메모" rows="3" class="form-input"></textarea>
+                <div class="modal-actions">
+                    <button type="button" onclick="saveExpenseChanges()" class="btn-primary">저장</button>
+                    <button type="button" onclick="closeExpenseModal()" class="btn-secondary">취소</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 확인 모달 -->
+    <div id="confirmModal" class="modal" style="display: none;">
+        <div class="modal-content confirm-modal">
+            <div class="modal-body">
+                <h3 id="confirmTitle">확인</h3>
+                <p id="confirmMessage">정말로 실행하시겠습니까?</p>
+                <div class="modal-actions">
+                    <button onclick="confirmAction()" class="btn-danger">확인</button>
+                    <button onclick="closeConfirmModal()" class="btn-secondary">취소</button>
                 </div>
             </div>
-        </section>
+        </div>
     </div>
 
     <script src="js/main.js"></script>
