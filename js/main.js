@@ -1,5 +1,6 @@
 // 전역 변수 및 설정
 let currentUser = 'guest';
+let currentUserId = 'guest_001'; // 고유 ID 추가
 let currentCategory = 'default';
 let participants = [];
 let expenses = [];
@@ -9,23 +10,42 @@ let confirmCallback = null;
 // LocalStorage 키
 const STORAGE_KEYS = {
     CURRENT_USER: 'dutchpay_current_user',
-    USER_DATA: 'dutchpay_user_data'
+    USER_DATA: 'dutchpay_user_data',
+    PROFILES: 'dutchpay_profiles'
 };
 
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', function() {
+    initializeProfiles();
     initializeApp();
     setupEventListeners();
     loadUserData();
     updateDisplay();
 });
 
+// 프로필 시스템 초기화 (고유 ID 시스템)
+function initializeProfiles() {
+    let profiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '{}');
+    
+    // 기본 guest 프로필이 없으면 생성
+    if (!profiles['guest_001']) {
+        profiles['guest_001'] = {
+            id: 'guest_001',
+            name: 'guest',
+            created: Date.now()
+        };
+        localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
+    }
+}
+
 // 앱 초기화
 function initializeApp() {
     // 저장된 사용자 정보 로드
-    const savedUser = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    if (savedUser) {
-        currentUser = savedUser;
+    const savedUserId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    if (savedUserId) {
+        currentUserId = savedUserId;
+        const profiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '{}');
+        currentUser = profiles[currentUserId]?.name || 'guest';
     }
     
     // 프로필 선택 드롭다운 업데이트
@@ -50,6 +70,10 @@ function setupEventListeners() {
     document.getElementById('newCategoryName').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') addCategory();
     });
+    
+    document.getElementById('editCategoryName').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') saveEditCategory();
+    });
 }
 
 // 프로필 관리 페이지로 이동
@@ -59,27 +83,29 @@ function goToProfileManagement() {
 
 // 프로필 선택 드롭다운 업데이트
 function updateProfileSelect() {
-    const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
-    const profiles = ['guest', ...Object.keys(userData)];
+    const profiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '{}');
     const select = document.getElementById('profileSelect');
     
-    select.innerHTML = profiles.map(profile => 
-        `<option value="${profile}" ${profile === currentUser ? 'selected' : ''}>${profile}</option>`
+    select.innerHTML = Object.values(profiles).map(profile => 
+        `<option value="${profile.id}" ${profile.id === currentUserId ? 'selected' : ''}>${profile.name}</option>`
     ).join('');
 }
 
 // 프로필 변경 (드롭다운에서)
 function changeProfile() {
     const select = document.getElementById('profileSelect');
-    const newProfile = select.value;
+    const newUserId = select.value;
     
-    if (newProfile !== currentUser) {
-        currentUser = newProfile;
-        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, currentUser);
+    if (newUserId !== currentUserId) {
+        currentUserId = newUserId;
+        const profiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '{}');
+        currentUser = profiles[currentUserId]?.name || 'guest';
+        
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, currentUserId);
         currentCategory = 'default';
         loadUserData();
         updateDisplay();
-        showToast(`"${currentUser}" 프로필로 전환되었습니다.`);
+        showToast(`"${currentUser}" ${t('profileSwitched')}`);
     }
 }
 
@@ -87,11 +113,11 @@ function changeProfile() {
 function saveUserData() {
     const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
     
-    if (!userData[currentUser]) {
-        userData[currentUser] = {};
+    if (!userData[currentUserId]) {
+        userData[currentUserId] = {};
     }
     
-    userData[currentUser][currentCategory] = {
+    userData[currentUserId][currentCategory] = {
         participants: participants,
         expenses: expenses,
         lastUpdated: Date.now()
@@ -103,8 +129,8 @@ function saveUserData() {
 function loadUserData() {
     const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
     
-    if (userData[currentUser] && userData[currentUser][currentCategory]) {
-        const data = userData[currentUser][currentCategory];
+    if (userData[currentUserId] && userData[currentUserId][currentCategory]) {
+        const data = userData[currentUserId][currentCategory];
         participants = data.participants || [];
         expenses = data.expenses || [];
     } else {
@@ -119,7 +145,7 @@ function loadUserData() {
 // 금액 포맷팅 (일본 엔으로 고정)
 function formatCurrency(amount) {
     const roundedAmount = Math.round(amount);
-    return `¥${roundedAmount.toLocaleString()}`;
+    return `${t('yen')}${roundedAmount.toLocaleString()}`;
 }
 
 // 참가자 추가
@@ -128,12 +154,12 @@ function addParticipant() {
     const name = nameInput.value.trim();
     
     if (name === '') {
-        showToast('참가자 이름을 입력해주세요.');
+        showToast(t('enterParticipantName'));
         return;
     }
     
     if (participants.includes(name)) {
-        showToast('이미 등록된 참가자입니다.');
+        showToast(t('participantExists'));
         return;
     }
     
@@ -141,20 +167,20 @@ function addParticipant() {
     nameInput.value = '';
     saveUserData();
     updateDisplay();
-    showToast(`${name}님이 추가되었습니다.`);
+    showToast(`${name}${t('participantAdded')}`);
 }
 
 // 참가자 제거 (확인 단계 포함)
 function removeParticipant(name) {
     showConfirm(
-        '참가자 삭제',
-        `${name}님을 참가자 목록에서 제거하시겠습니까?\\n해당 참가자가 지불한 모든 내역도 함께 삭제됩니다.`,
+        t('confirm'),
+        `${name}${t('deleteParticipantConfirm')}`,
         () => {
             participants = participants.filter(participant => participant !== name);
             expenses = expenses.filter(expense => expense.payer !== name);
             saveUserData();
             updateDisplay();
-            showToast(`${name}님이 제거되었습니다.`);
+            showToast(`${name}${t('participantRemoved')}`);
         }
     );
 }
@@ -172,17 +198,17 @@ function addExpense() {
     const memo = memoInput.value.trim();
     
     if (name === '') {
-        showToast('항목 이름을 입력해주세요.');
+        showToast(t('enterExpenseName'));
         return;
     }
     
     if (isNaN(amount) || amount <= 0) {
-        showToast('올바른 금액을 입력해주세요.');
+        showToast(t('enterValidAmount'));
         return;
     }
     
     if (payer === '') {
-        showToast('지불한 사람을 선택해주세요.');
+        showToast(t('selectPayer'));
         return;
     }
     
@@ -205,7 +231,7 @@ function addExpense() {
     
     saveUserData();
     updateDisplay();
-    showToast('지출이 추가되었습니다.');
+    showToast(t('expenseAdded'));
 }
 
 // 지출 상세 보기/수정
@@ -240,17 +266,17 @@ function saveExpenseChanges() {
     const memo = document.getElementById('editExpenseMemo').value.trim();
     
     if (name === '') {
-        showToast('항목 이름을 입력해주세요.');
+        showToast(t('enterExpenseName'));
         return;
     }
     
     if (isNaN(amount) || amount <= 0) {
-        showToast('올바른 금액을 입력해주세요.');
+        showToast(t('enterValidAmount'));
         return;
     }
     
     if (payer === '') {
-        showToast('지불한 사람을 선택해주세요.');
+        showToast(t('selectPayer'));
         return;
     }
     
@@ -269,7 +295,7 @@ function saveExpenseChanges() {
         saveUserData();
         updateDisplay();
         closeExpenseModal();
-        showToast('지출 내역이 수정되었습니다.');
+        showToast(t('expenseUpdated'));
     }
 }
 
@@ -285,13 +311,13 @@ function removeExpense(id) {
     if (!expense) return;
     
     showConfirm(
-        '지출 내역 삭제',
-        `"${expense.name}" 내역을 삭제하시겠습니까?`,
+        t('confirm'),
+        `"${expense.name}" ${t('deleteExpenseConfirm')}`,
         () => {
             expenses = expenses.filter(expense => expense.id !== id);
             saveUserData();
             updateDisplay();
-            showToast('지출 내역이 삭제되었습니다.');
+            showToast(t('expenseDeleted'));
         }
     );
 }
@@ -299,12 +325,20 @@ function removeExpense(id) {
 // 카테고리 관리
 function updateCategorySelect() {
     const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
-    const userCategories = userData[currentUser] || {};
+    const userCategories = userData[currentUserId] || {};
     const categories = Object.keys(userCategories);
     
     const select = document.getElementById('categorySelect');
-    select.innerHTML = '<option value="default">기본 카테고리</option>';
+    const defaultOption = select.querySelector('option[value="default"]');
     
+    // 기존 옵션들 제거 (default 제외)
+    Array.from(select.children).forEach(option => {
+        if (option.value !== 'default') {
+            select.removeChild(option);
+        }
+    });
+    
+    // 새 카테고리들 추가
     categories.forEach(category => {
         if (category !== 'default') {
             const option = document.createElement('option');
@@ -336,19 +370,19 @@ function addCategory() {
     const categoryName = input.value.trim();
     
     if (categoryName === '') {
-        showToast('카테고리 이름을 입력해주세요.');
+        showToast(t('enterCategoryName'));
         return;
     }
     
     if (categoryName === 'default') {
-        showToast('"default"는 사용할 수 없는 이름입니다.');
+        showToast(t('defaultCategoryReserved'));
         return;
     }
     
     // 기존 카테고리 중복 확인
     const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
-    if (userData[currentUser] && userData[currentUser][categoryName]) {
-        showToast('이미 존재하는 카테고리입니다.');
+    if (userData[currentUserId] && userData[currentUserId][categoryName]) {
+        showToast(t('categoryExists'));
         return;
     }
     
@@ -359,7 +393,7 @@ function addCategory() {
     saveUserData();
     updateDisplay();
     hideAddCategory();
-    showToast(`"${categoryName}" 카테고리가 생성되었습니다.`);
+    showToast(`"${categoryName}" ${t('categoryCreated')}`);
 }
 
 function changeCategory() {
@@ -369,44 +403,145 @@ function changeCategory() {
     updateDisplay();
 }
 
+// 현재 카테고리 편집
+function editCurrentCategory() {
+    if (currentCategory === 'default') {
+        showToast(t('defaultCategoryReserved'));
+        return;
+    }
+    
+    document.getElementById('editCategoryForm').style.display = 'flex';
+    document.getElementById('editCategoryName').value = currentCategory;
+    document.getElementById('editCategoryName').focus();
+}
+
+function hideEditCategory() {
+    document.getElementById('editCategoryForm').style.display = 'none';
+    document.getElementById('editCategoryName').value = '';
+}
+
+function saveEditCategory() {
+    const input = document.getElementById('editCategoryName');
+    const newCategoryName = input.value.trim();
+    
+    if (newCategoryName === '') {
+        showToast(t('enterCategoryName'));
+        return;
+    }
+    
+    if (newCategoryName === 'default') {
+        showToast(t('defaultCategoryReserved'));
+        return;
+    }
+    
+    if (newCategoryName === currentCategory) {
+        hideEditCategory();
+        return;
+    }
+    
+    // 기존 카테고리 중복 확인
+    const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
+    if (userData[currentUserId] && userData[currentUserId][newCategoryName]) {
+        showToast(t('categoryExists'));
+        return;
+    }
+    
+    // 카테고리 이름 변경
+    const oldCategoryName = currentCategory;
+    if (userData[currentUserId] && userData[currentUserId][oldCategoryName]) {
+        userData[currentUserId][newCategoryName] = userData[currentUserId][oldCategoryName];
+        delete userData[currentUserId][oldCategoryName];
+        localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
+    }
+    
+    currentCategory = newCategoryName;
+    updateDisplay();
+    hideEditCategory();
+    showToast(`"${newCategoryName}" ${t('categoryUpdated')}`);
+}
+
+// 현재 카테고리 삭제
+function deleteCurrentCategory() {
+    if (currentCategory === 'default') {
+        showToast(t('defaultCategoryReserved'));
+        return;
+    }
+    
+    showConfirm(
+        t('confirm'),
+        `"${currentCategory}" ${t('deleteCategoryConfirm')}`,
+        () => {
+            const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
+            if (userData[currentUserId] && userData[currentUserId][currentCategory]) {
+                delete userData[currentUserId][currentCategory];
+                localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
+            }
+            
+            currentCategory = 'default';
+            loadUserData();
+            updateDisplay();
+            showToast(`${t('categoryDeleted')}`);
+        }
+    );
+}
+
 // 현재 카테고리 초기화
 function resetCurrentCategory() {
     showConfirm(
-        '카테고리 초기화',
-        `현재 카테고리의 모든 데이터가 삭제됩니다.\\n이 작업은 되돌릴 수 없습니다.\\n정말로 초기화하시겠습니까?`,
+        t('confirm'),
+        t('resetCategoryConfirm'),
         () => {
             participants = [];
             expenses = [];
             saveUserData();
             updateDisplay();
-            showToast('카테고리가 초기화되었습니다.');
+            showToast(t('categoryReset'));
         }
     );
 }
 
-// PayPay 앱 실행
+// PayPay 앱 실행 (개선된 버전)
 function openPayPay() {
-    // PayPay 앱 스킴 시도
     const payPayScheme = 'paypay://';
     const payPayWebsite = 'https://paypay.ne.jp/';
     
-    // 모바일에서 앱 실행 시도
-    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-        // 앱 실행 시도
-        window.location.href = payPayScheme;
+    // 모바일 환경 체크
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+        // 앱 실행을 위한 iframe 방식 시도
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = payPayScheme;
+        document.body.appendChild(iframe);
         
-        // 앱이 설치되지 않은 경우 웹사이트로 리다이렉트
-        setTimeout(() => {
-            if (!document.hidden) {
-                window.open(payPayWebsite, '_blank');
+        // 앱이 실행되지 않으면 웹사이트로 이동
+        const timer = setTimeout(() => {
+            window.open(payPayWebsite, '_blank');
+        }, 1000);
+        
+        // 페이지가 숨겨지면 (앱이 실행됨) 타이머 취소
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                clearTimeout(timer);
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
             }
-        }, 1500);
+        };
+        
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        // iframe 정리
+        setTimeout(() => {
+            if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+            }
+        }, 2000);
     } else {
         // PC에서는 바로 웹사이트로 이동
         window.open(payPayWebsite, '_blank');
     }
     
-    showToast('PayPay 앱을 실행합니다...');
+    showToast(t('paypay Launching'));
 }
 
 // 토스트 메시지 표시
@@ -429,10 +564,14 @@ function showToast(message) {
     }, 100);
 }
 
-// 확인 모달 표시
+// 확인 모달 표시 (줄바꿈 처리 개선)
 function showConfirm(title, message, callback) {
     document.getElementById('confirmTitle').textContent = title;
-    document.getElementById('confirmMessage').textContent = message;
+    
+    // \\n을 실제 줄바꿈으로 변환
+    const messageElement = document.getElementById('confirmMessage');
+    messageElement.innerHTML = message.replace(/\\n/g, '<br>');
+    
     confirmCallback = callback;
     document.getElementById('confirmModal').style.display = 'flex';
 }
@@ -467,14 +606,14 @@ function updateParticipantsList() {
     const container = document.getElementById('participantsList');
     
     if (participants.length === 0) {
-        container.innerHTML = '<div class="empty-message">참가자를 추가해주세요.</div>';
+        container.innerHTML = `<div class="empty-message">${t('addParticipantFirst')}</div>`;
         return;
     }
     
     container.innerHTML = participants.map(participant => `
         <div class="tag">
             <span>${participant}</span>
-            <button onclick="removeParticipant('${participant}')" class="tag-remove" title="제거">×</button>
+            <button onclick="removeParticipant('${participant}')" class="tag-remove" title="${t('delete')}">×</button>
         </div>
     `).join('');
 }
@@ -484,7 +623,7 @@ function updatePayerSelects() {
     const select = document.getElementById('expensePayer');
     const currentValue = select.value;
     
-    select.innerHTML = '<option value="">지불한 사람</option>' +
+    select.innerHTML = `<option value="">${t('payer')}</option>` +
         participants.map(participant => 
             `<option value="${participant}" ${participant === currentValue ? 'selected' : ''}>${participant}</option>`
         ).join('');
@@ -494,7 +633,7 @@ function updateExpensesList() {
     const container = document.getElementById('expensesList');
     
     if (expenses.length === 0) {
-        container.innerHTML = '<div class="empty-message">지출 내역이 없습니다.</div>';
+        container.innerHTML = `<div class="empty-message">${t('noExpenses')}</div>`;
         return;
     }
     
@@ -506,7 +645,7 @@ function updateExpensesList() {
             </div>
             <div class="expense-actions">
                 <div class="expense-amount">${formatCurrency(expense.amount)}</div>
-                <button onclick="event.stopPropagation(); removeExpense(${expense.id})" class="btn-delete" title="삭제">×</button>
+                <button onclick="event.stopPropagation(); removeExpense(${expense.id})" class="btn-delete" title="${t('delete')}">×</button>
             </div>
         </div>
     `).join('');
@@ -518,7 +657,7 @@ function updateSummary() {
     const perPersonAmount = participantCount > 0 ? totalAmount / participantCount : 0;
     
     document.getElementById('totalAmount').textContent = formatCurrency(totalAmount);
-    document.getElementById('participantCount').textContent = participantCount + '명';
+    document.getElementById('participantCountText').innerHTML = `${participantCount}<span data-i18n="people">${t('people')}</span>`;
     document.getElementById('perPersonAmount').textContent = formatCurrency(perPersonAmount);
 }
 
@@ -527,7 +666,7 @@ function updateSettlement() {
     const paypaySection = document.getElementById('paypayActions');
     
     if (participants.length < 2 || expenses.length === 0) {
-        container.innerHTML = '<div class="empty-message">정산할 내역이 없습니다.</div>';
+        container.innerHTML = `<div class="empty-message">${t('noSettlement')}</div>`;
         paypaySection.style.display = 'none';
         return;
     }
@@ -598,7 +737,7 @@ function updateSettlement() {
     
     // 정산 결과 표시
     if (settlements.length === 0) {
-        container.innerHTML = '<div class="empty-message">모든 참가자가 정확히 정산되었습니다! 🎉</div>';
+        container.innerHTML = `<div class="empty-message">${t('allSettled')}</div>`;
         paypaySection.style.display = 'none';
     } else {
         container.innerHTML = settlements.map(settlement => `

@@ -83,6 +83,37 @@ h1 {
     gap: 0.75rem;
 }
 
+/* 언어 전환 버튼 */
+.language-switcher {
+    display: flex;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 2px;
+    border: 1px solid var(--border-color);
+}
+
+.lang-btn {
+    background: none;
+    border: none;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    color: var(--text-secondary);
+}
+
+.lang-btn.active {
+    background-color: var(--accent-color);
+    color: white;
+    transform: scale(1.05);
+}
+
+.lang-btn:hover:not(.active) {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}
+
 /* 프로필 선택 */
 .profile-select {
     padding: 0.5rem 0.75rem;
@@ -144,7 +175,14 @@ h2 {
     margin-bottom: 1rem;
 }
 
-/* 카테고리 선택 */
+/* 카테고리 관리 */
+.category-management {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+
 .category-select {
     flex: 1;
     padding: 0.75rem;
@@ -153,6 +191,37 @@ h2 {
     background-color: var(--bg-card);
     color: var(--text-primary);
     font-size: 1rem;
+}
+
+.category-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.btn-edit-category,
+.btn-delete-category {
+    background: none;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-edit-category:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+}
+
+.btn-delete-category:hover {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
 }
 
 /* 버튼 스타일 */
@@ -593,13 +662,20 @@ textarea {
 .page-header {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    justify-content: space-between;
     padding: 1rem 1.5rem;
     background-color: var(--bg-card);
     border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
     z-index: 100;
+}
+
+.page-header > div:first-child {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
 }
 
 .back-button {
@@ -690,6 +766,100 @@ textarea {
 
 .btn-switch:hover {
     background-color: var(--accent-hover);
+}
+
+.btn-edit {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-edit:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+}
+
+.btn-delete {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-delete:hover {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
+}
+
+/* 프로필 편집 인라인 스타일 */
+.profile-edit-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 2px solid var(--accent-color);
+    border-radius: 6px;
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.profile-edit-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(230, 0, 18, 0.1);
+}
+
+.profile-edit-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.btn-save,
+.btn-cancel {
+    background: none;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-save {
+    color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.btn-save:hover {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.btn-cancel {
+    color: var(--text-secondary);
+}
+
+.btn-cancel:hover {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
 }
 
 /* 토스트 메시지 */

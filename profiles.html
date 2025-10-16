@@ -15,21 +15,25 @@
                     <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </button>
-            <h1>프로필 관리</h1>
+            <h1 data-i18n="profileManagementTitle">프로필 관리</h1>
+            <div class="language-switcher">
+                <button id="langKo" onclick="changeLanguage('ko')" class="lang-btn active">🇰🇷</button>
+                <button id="langJa" onclick="changeLanguage('ja')" class="lang-btn">🇯🇵</button>
+            </div>
         </header>
 
         <!-- 새 프로필 추가 -->
         <section class="profile-add-section">
-            <h2>새 프로필 추가</h2>
+            <h2 data-i18n="addNewProfile">새 프로필 추가</h2>
             <div class="input-row">
-                <input type="text" id="newProfileName" placeholder="프로필 이름을 입력하세요" maxlength="20">
-                <button onclick="addProfile()" class="btn-primary">추가</button>
+                <input type="text" id="newProfileName" data-i18n="profileNamePlaceholder" placeholder="프로필 이름을 입력하세요" maxlength="20">
+                <button onclick="addProfile()" class="btn-primary" data-i18n="addButton">추가</button>
             </div>
         </section>
 
         <!-- 기존 프로필 목록 -->
         <section class="profile-list-section">
-            <h2>기존 프로필</h2>
+            <h2 data-i18n="existingProfiles">기존 프로필</h2>
             <div id="profilesList" class="profiles-grid">
                 <!-- 프로필 목록이 여기에 표시됩니다 -->
             </div>
@@ -40,18 +44,19 @@
     <div id="confirmModal" class="modal" style="display: none;">
         <div class="modal-content confirm-modal">
             <div class="modal-header">
-                <h3 id="confirmTitle">확인</h3>
+                <h3 id="confirmTitle" data-i18n="confirm">확인</h3>
             </div>
             <div class="modal-body">
                 <p id="confirmMessage">정말로 실행하시겠습니까?</p>
             </div>
             <div class="modal-footer">
-                <button onclick="confirmAction()" class="btn-danger">확인</button>
-                <button onclick="closeConfirmModal()" class="btn-secondary">취소</button>
+                <button onclick="confirmAction()" class="btn-danger" data-i18n="confirm">확인</button>
+                <button onclick="closeConfirmModal()" class="btn-secondary" data-i18n="cancel">취소</button>
             </div>
         </div>
     </div>
 
+    <script src="js/i18n.js"></script>
     <script src="js/profiles.js"></script>
 </body>
 </html>
