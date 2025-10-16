@@ -500,48 +500,29 @@ function resetCurrentCategory() {
     );
 }
 
-// PayPay 앱 실행 (개선된 버전)
+// PayPay 앱 실행
 function openPayPay() {
+    // PayPay 앱 스킴 시도
     const payPayScheme = 'paypay://';
     const payPayWebsite = 'https://paypay.ne.jp/';
     
-    // 모바일 환경 체크
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    if (isMobile) {
-        // 앱 실행을 위한 iframe 방식 시도
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = payPayScheme;
-        document.body.appendChild(iframe);
+    // 모바일에서 앱 실행 시도
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        // 앱 실행 시도
+        window.location.href = payPayScheme;
         
-        // 앱이 실행되지 않으면 웹사이트로 이동
-        const timer = setTimeout(() => {
-            window.open(payPayWebsite, '_blank');
-        }, 1000);
-        
-        // 페이지가 숨겨지면 (앱이 실행됨) 타이머 취소
-        const handleVisibilityChange = () => {
-            if (document.hidden) {
-                clearTimeout(timer);
-                document.removeEventListener('visibilitychange', handleVisibilityChange);
-            }
-        };
-        
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        
-        // iframe 정리
+        // 앱이 설치되지 않은 경우 웹사이트로 리다이렉트
         setTimeout(() => {
-            if (document.body.contains(iframe)) {
-                document.body.removeChild(iframe);
+            if (!document.hidden) {
+                window.open(payPayWebsite, '_blank');
             }
-        }, 2000);
+        }, 1500);
     } else {
         // PC에서는 바로 웹사이트로 이동
         window.open(payPayWebsite, '_blank');
     }
     
-    showToast(t('paypay Launching'));
+    showToast('PayPay 앱을 실행합니다...');
 }
 
 // 토스트 메시지 표시
