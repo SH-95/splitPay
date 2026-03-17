@@ -1,106 +1,201 @@
-// 전역 변수 및 설정
+// =========================================
+// Global State
+// =========================================
 let currentUser = 'guest';
-let currentUserId = 'guest_001'; // 고유 ID 추가
+let currentUserId = 'guest_001';
 let currentCategory = 'default';
 let participants = [];
 let expenses = [];
 let editingExpenseId = null;
 let confirmCallback = null;
+let activeTab = 'participants';
 
-// LocalStorage 키
+// LocalStorage keys
 const STORAGE_KEYS = {
     CURRENT_USER: 'dutchpay_current_user',
     USER_DATA: 'dutchpay_user_data',
     PROFILES: 'dutchpay_profiles'
 };
 
-// 페이지 로드 시 초기화
-document.addEventListener('DOMContentLoaded', function() {
+// =========================================
+// Init
+// =========================================
+document.addEventListener('DOMContentLoaded', function () {
     initializeProfiles();
     initializeApp();
     setupEventListeners();
     loadUserData();
     updateDisplay();
+    switchTab('participants');
 });
 
-// 프로필 시스템 초기화 (고유 ID 시스템)
 function initializeProfiles() {
     let profiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '{}');
-    
-    // 기본 guest 프로필이 없으면 생성
     if (!profiles['guest_001']) {
-        profiles['guest_001'] = {
-            id: 'guest_001',
-            name: 'guest',
-            created: Date.now()
-        };
+        profiles['guest_001'] = { id: 'guest_001', name: 'guest', created: Date.now() };
         localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
     }
 }
 
-// 앱 초기화
 function initializeApp() {
-    // 저장된 사용자 정보 로드
     const savedUserId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
     if (savedUserId) {
         currentUserId = savedUserId;
         const profiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '{}');
         currentUser = profiles[currentUserId]?.name || 'guest';
     }
-    
-    // 프로필 선택 드롭다운 업데이트
     updateProfileSelect();
 }
 
-// 이벤트 리스너 설정
 function setupEventListeners() {
-    // 엔터 키 이벤트
-    document.getElementById('participantName').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') addParticipant();
-    });
-    
-    document.getElementById('expenseName').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') document.getElementById('expenseAmount').focus();
-    });
-    
-    document.getElementById('expenseAmount').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') document.getElementById('expensePayer').focus();
-    });
-    
-    document.getElementById('newCategoryName').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') addCategory();
-    });
-    
-    document.getElementById('editCategoryName').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') saveEditCategory();
-    });
+    const participantName = document.getElementById('participantName');
+    if (participantName) {
+        participantName.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') addParticipant();
+        });
+    }
+
+    const expenseName = document.getElementById('expenseName');
+    if (expenseName) {
+        expenseName.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') document.getElementById('expenseAmount').focus();
+        });
+    }
+
+    const expenseAmount = document.getElementById('expenseAmount');
+    if (expenseAmount) {
+        expenseAmount.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') document.getElementById('expensePayer').focus();
+        });
+    }
+
+    const newCategoryName = document.getElementById('newCategoryName');
+    if (newCategoryName) {
+        newCategoryName.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') addCategory();
+        });
+    }
+
+    const editCategoryName = document.getElementById('editCategoryName');
+    if (editCategoryName) {
+        editCategoryName.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') saveEditCategory();
+        });
+    }
 }
 
-// 프로필 관리 페이지로 이동
+// =========================================
+// Tab Navigation
+// =========================================
+function switchTab(tabName) {
+    activeTab = tabName;
+
+    // Update panels
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+    const targetPanel = document.getElementById('tab-' + tabName);
+    if (targetPanel) {
+        targetPanel.classList.add('active');
+    }
+
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const targetBtn = document.getElementById('tabBtn-' + tabName);
+    if (targetBtn) {
+        targetBtn.classList.add('active');
+    }
+
+    // Update badges after switching
+    updateTabBadges();
+}
+
+function updateTabBadges() {
+    // Participants badge
+    const participantBadge = document.getElementById('badge-participants');
+    if (participantBadge) {
+        if (participants.length > 0) {
+            participantBadge.textContent = participants.length;
+            participantBadge.style.display = 'flex';
+        } else {
+            participantBadge.style.display = 'none';
+        }
+    }
+
+    // Expenses badge
+    const expenseBadge = document.getElementById('badge-expenses');
+    if (expenseBadge) {
+        if (expenses.length > 0) {
+            expenseBadge.textContent = expenses.length;
+            expenseBadge.style.display = 'flex';
+        } else {
+            expenseBadge.style.display = 'none';
+        }
+    }
+
+    // Settlement badge — show count of settlement transactions needed
+    const settlementBadge = document.getElementById('badge-settlement');
+    if (settlementBadge) {
+        if (participants.length >= 2 && expenses.length > 0) {
+            const count = calculateSettlementCount();
+            if (count > 0) {
+                settlementBadge.textContent = count;
+                settlementBadge.style.display = 'flex';
+            } else {
+                settlementBadge.style.display = 'none';
+            }
+        } else {
+            settlementBadge.style.display = 'none';
+        }
+    }
+}
+
+function calculateSettlementCount() {
+    if (participants.length < 2 || expenses.length === 0) return 0;
+
+    const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const perPerson = totalAmount / participants.length;
+    const paid = {};
+    participants.forEach(p => { paid[p] = 0; });
+    expenses.forEach(e => {
+        if (paid.hasOwnProperty(e.payer)) paid[e.payer] += e.amount;
+    });
+
+    const balances = {};
+    participants.forEach(p => { balances[p] = perPerson - paid[p]; });
+
+    const debtors = Object.entries(balances).filter(([, b]) => b > 0.5).length;
+    return debtors; // approximate: one transaction per debtor at minimum
+}
+
+// =========================================
+// Profile management
+// =========================================
 function goToProfileManagement() {
     window.location.href = 'profiles.html';
 }
 
-// 프로필 선택 드롭다운 업데이트
 function updateProfileSelect() {
     const profiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '{}');
     const select = document.getElementById('profileSelect');
-    
-    select.innerHTML = Object.values(profiles).map(profile => 
+    if (!select) return;
+
+    select.innerHTML = Object.values(profiles).map(profile =>
         `<option value="${profile.id}" ${profile.id === currentUserId ? 'selected' : ''}>${profile.name}</option>`
     ).join('');
 }
 
-// 프로필 변경 (드롭다운에서)
 function changeProfile() {
     const select = document.getElementById('profileSelect');
+    if (!select) return;
     const newUserId = select.value;
-    
+
     if (newUserId !== currentUserId) {
         currentUserId = newUserId;
         const profiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '{}');
         currentUser = profiles[currentUserId]?.name || 'guest';
-        
         localStorage.setItem(STORAGE_KEYS.CURRENT_USER, currentUserId);
         currentCategory = 'default';
         loadUserData();
@@ -109,26 +204,22 @@ function changeProfile() {
     }
 }
 
-// 사용자 데이터 저장/로드
+// =========================================
+// Data persistence
+// =========================================
 function saveUserData() {
     const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
-    
-    if (!userData[currentUserId]) {
-        userData[currentUserId] = {};
-    }
-    
+    if (!userData[currentUserId]) userData[currentUserId] = {};
     userData[currentUserId][currentCategory] = {
         participants: participants,
         expenses: expenses,
         lastUpdated: Date.now()
     };
-    
     localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
 }
 
 function loadUserData() {
     const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
-    
     if (userData[currentUserId] && userData[currentUserId][currentCategory]) {
         const data = userData[currentUserId][currentCategory];
         participants = data.participants || [];
@@ -137,32 +228,33 @@ function loadUserData() {
         participants = [];
         expenses = [];
     }
-    
-    // 카테고리 목록 업데이트
     updateCategorySelect();
 }
 
-// 금액 포맷팅 (일본 엔으로 고정)
+// =========================================
+// Currency formatting
+// =========================================
 function formatCurrency(amount) {
-    const roundedAmount = Math.round(amount);
-    return `${t('yen')}${roundedAmount.toLocaleString()}`;
+    const rounded = Math.round(amount);
+    return `${t('yen')}${rounded.toLocaleString()}`;
 }
 
-// 참가자 추가
+// =========================================
+// Participants
+// =========================================
 function addParticipant() {
     const nameInput = document.getElementById('participantName');
     const name = nameInput.value.trim();
-    
+
     if (name === '') {
         showToast(t('enterParticipantName'));
         return;
     }
-    
     if (participants.includes(name)) {
         showToast(t('participantExists'));
         return;
     }
-    
+
     participants.push(name);
     nameInput.value = '';
     saveUserData();
@@ -170,14 +262,13 @@ function addParticipant() {
     showToast(`${name}${t('participantAdded')}`);
 }
 
-// 참가자 제거 (확인 단계 포함)
 function removeParticipant(name) {
     showConfirm(
         t('confirm'),
         `${name}${t('deleteParticipantConfirm')}`,
         () => {
-            participants = participants.filter(participant => participant !== name);
-            expenses = expenses.filter(expense => expense.payer !== name);
+            participants = participants.filter(p => p !== name);
+            expenses = expenses.filter(e => e.payer !== name);
             saveUserData();
             updateDisplay();
             showToast(`${name}${t('participantRemoved')}`);
@@ -185,113 +276,83 @@ function removeParticipant(name) {
     );
 }
 
-// 지출 추가
+// =========================================
+// Expenses
+// =========================================
 function addExpense() {
     const nameInput = document.getElementById('expenseName');
     const amountInput = document.getElementById('expenseAmount');
     const payerSelect = document.getElementById('expensePayer');
     const memoInput = document.getElementById('expenseMemo');
-    
+
     const name = nameInput.value.trim();
     const amount = parseFloat(amountInput.value);
     const payer = payerSelect.value;
     const memo = memoInput.value.trim();
-    
-    if (name === '') {
-        showToast(t('enterExpenseName'));
-        return;
-    }
-    
-    if (isNaN(amount) || amount <= 0) {
-        showToast(t('enterValidAmount'));
-        return;
-    }
-    
-    if (payer === '') {
-        showToast(t('selectPayer'));
-        return;
-    }
-    
-    const expense = {
+
+    if (name === '') { showToast(t('enterExpenseName')); return; }
+    if (isNaN(amount) || amount <= 0) { showToast(t('enterValidAmount')); return; }
+    if (payer === '') { showToast(t('selectPayer')); return; }
+
+    expenses.push({
         id: Date.now(),
         name: name,
         amount: amount,
         payer: payer,
         memo: memo,
         created: new Date().toISOString()
-    };
-    
-    expenses.push(expense);
-    
-    // 입력 필드 초기화
+    });
+
     nameInput.value = '';
     amountInput.value = '';
     payerSelect.value = '';
     memoInput.value = '';
-    
+
     saveUserData();
     updateDisplay();
     showToast(t('expenseAdded'));
 }
 
-// 지출 상세 보기/수정
 function showExpenseDetail(id) {
     const expense = expenses.find(e => e.id === id);
     if (!expense) return;
-    
+
     editingExpenseId = id;
-    
-    // 모달에 데이터 채우기
+
     document.getElementById('editExpenseName').value = expense.name;
     document.getElementById('editExpenseAmount').value = expense.amount;
     document.getElementById('editExpenseMemo').value = expense.memo || '';
-    
-    // 지불자 선택 옵션 업데이트
+
     const payerSelect = document.getElementById('editExpensePayer');
-    payerSelect.innerHTML = participants.map(participant => 
-        `<option value="${participant}" ${participant === expense.payer ? 'selected' : ''}>${participant}</option>`
+    payerSelect.innerHTML = participants.map(p =>
+        `<option value="${p}" ${p === expense.payer ? 'selected' : ''}>${p}</option>`
     ).join('');
-    
-    // 모달 표시
+
     document.getElementById('expenseModal').style.display = 'flex';
 }
 
-// 지출 수정 저장
 function saveExpenseChanges() {
     if (!editingExpenseId) return;
-    
+
     const name = document.getElementById('editExpenseName').value.trim();
     const amount = parseFloat(document.getElementById('editExpenseAmount').value);
     const payer = document.getElementById('editExpensePayer').value;
     const memo = document.getElementById('editExpenseMemo').value.trim();
-    
-    if (name === '') {
-        showToast(t('enterExpenseName'));
-        return;
-    }
-    
-    if (isNaN(amount) || amount <= 0) {
-        showToast(t('enterValidAmount'));
-        return;
-    }
-    
-    if (payer === '') {
-        showToast(t('selectPayer'));
-        return;
-    }
-    
-    // 지출 내역 업데이트
-    const expenseIndex = expenses.findIndex(e => e.id === editingExpenseId);
-    if (expenseIndex !== -1) {
-        expenses[expenseIndex] = {
-            ...expenses[expenseIndex],
+
+    if (name === '') { showToast(t('enterExpenseName')); return; }
+    if (isNaN(amount) || amount <= 0) { showToast(t('enterValidAmount')); return; }
+    if (payer === '') { showToast(t('selectPayer')); return; }
+
+    const idx = expenses.findIndex(e => e.id === editingExpenseId);
+    if (idx !== -1) {
+        expenses[idx] = {
+            ...expenses[idx],
             name: name,
             amount: amount,
             payer: payer,
             memo: memo,
             modified: new Date().toISOString()
         };
-        
         saveUserData();
         updateDisplay();
         closeExpenseModal();
@@ -299,22 +360,20 @@ function saveExpenseChanges() {
     }
 }
 
-// 모달 닫기
 function closeExpenseModal() {
     document.getElementById('expenseModal').style.display = 'none';
     editingExpenseId = null;
 }
 
-// 지출 제거 (확인 단계 포함)
 function removeExpense(id) {
     const expense = expenses.find(e => e.id === id);
     if (!expense) return;
-    
+
     showConfirm(
         t('confirm'),
         `"${expense.name}" ${t('deleteExpenseConfirm')}`,
         () => {
-            expenses = expenses.filter(expense => expense.id !== id);
+            expenses = expenses.filter(e => e.id !== id);
             saveUserData();
             updateDisplay();
             showToast(t('expenseDeleted'));
@@ -322,71 +381,63 @@ function removeExpense(id) {
     );
 }
 
-// 카테고리 관리
+// =========================================
+// Category management
+// =========================================
 function updateCategorySelect() {
     const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
     const userCategories = userData[currentUserId] || {};
     const categories = Object.keys(userCategories);
-    
+
     const select = document.getElementById('categorySelect');
-    const defaultOption = select.querySelector('option[value="default"]');
-    
-    // 기존 옵션들 제거 (default 제외)
-    Array.from(select.children).forEach(option => {
-        if (option.value !== 'default') {
-            select.removeChild(option);
-        }
+    if (!select) return;
+
+    // Remove all non-default options
+    Array.from(select.children).forEach(opt => {
+        if (opt.value !== 'default') select.removeChild(opt);
     });
-    
-    // 새 카테고리들 추가
+
+    // Add user categories
     categories.forEach(category => {
         if (category !== 'default') {
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            if (category === currentCategory) {
-                option.selected = true;
-            }
-            select.appendChild(option);
+            const opt = document.createElement('option');
+            opt.value = category;
+            opt.textContent = category;
+            if (category === currentCategory) opt.selected = true;
+            select.appendChild(opt);
         }
     });
-    
-    // 현재 카테고리가 선택되도록 설정
+
     select.value = currentCategory;
 }
 
 function showAddCategory() {
-    document.getElementById('addCategoryForm').style.display = 'flex';
-    document.getElementById('newCategoryName').focus();
+    const form = document.getElementById('addCategoryForm');
+    if (form) {
+        form.style.display = 'flex';
+        document.getElementById('newCategoryName').focus();
+    }
 }
 
 function hideAddCategory() {
-    document.getElementById('addCategoryForm').style.display = 'none';
+    const form = document.getElementById('addCategoryForm');
+    if (form) form.style.display = 'none';
     document.getElementById('newCategoryName').value = '';
 }
 
 function addCategory() {
     const input = document.getElementById('newCategoryName');
     const categoryName = input.value.trim();
-    
-    if (categoryName === '') {
-        showToast(t('enterCategoryName'));
-        return;
-    }
-    
-    if (categoryName === 'default') {
-        showToast(t('defaultCategoryReserved'));
-        return;
-    }
-    
-    // 기존 카테고리 중복 확인
+
+    if (categoryName === '') { showToast(t('enterCategoryName')); return; }
+    if (categoryName === 'default') { showToast(t('defaultCategoryReserved')); return; }
+
     const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
     if (userData[currentUserId] && userData[currentUserId][categoryName]) {
         showToast(t('categoryExists'));
         return;
     }
-    
-    // 새 카테고리로 전환 (빈 데이터로 시작)
+
     currentCategory = categoryName;
     participants = [];
     expenses = [];
@@ -398,75 +449,63 @@ function addCategory() {
 
 function changeCategory() {
     const select = document.getElementById('categorySelect');
+    if (!select) return;
     currentCategory = select.value;
     loadUserData();
     updateDisplay();
 }
 
-// 현재 카테고리 편집
 function editCurrentCategory() {
     if (currentCategory === 'default') {
         showToast(t('defaultCategoryReserved'));
         return;
     }
-    
-    document.getElementById('editCategoryForm').style.display = 'flex';
-    document.getElementById('editCategoryName').value = currentCategory;
-    document.getElementById('editCategoryName').focus();
+    const form = document.getElementById('editCategoryForm');
+    if (form) {
+        form.style.display = 'flex';
+        document.getElementById('editCategoryName').value = currentCategory;
+        document.getElementById('editCategoryName').focus();
+    }
 }
 
 function hideEditCategory() {
-    document.getElementById('editCategoryForm').style.display = 'none';
+    const form = document.getElementById('editCategoryForm');
+    if (form) form.style.display = 'none';
     document.getElementById('editCategoryName').value = '';
 }
 
 function saveEditCategory() {
     const input = document.getElementById('editCategoryName');
-    const newCategoryName = input.value.trim();
-    
-    if (newCategoryName === '') {
-        showToast(t('enterCategoryName'));
-        return;
-    }
-    
-    if (newCategoryName === 'default') {
-        showToast(t('defaultCategoryReserved'));
-        return;
-    }
-    
-    if (newCategoryName === currentCategory) {
-        hideEditCategory();
-        return;
-    }
-    
-    // 기존 카테고리 중복 확인
+    const newName = input.value.trim();
+
+    if (newName === '') { showToast(t('enterCategoryName')); return; }
+    if (newName === 'default') { showToast(t('defaultCategoryReserved')); return; }
+    if (newName === currentCategory) { hideEditCategory(); return; }
+
     const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
-    if (userData[currentUserId] && userData[currentUserId][newCategoryName]) {
+    if (userData[currentUserId] && userData[currentUserId][newName]) {
         showToast(t('categoryExists'));
         return;
     }
-    
-    // 카테고리 이름 변경
-    const oldCategoryName = currentCategory;
-    if (userData[currentUserId] && userData[currentUserId][oldCategoryName]) {
-        userData[currentUserId][newCategoryName] = userData[currentUserId][oldCategoryName];
-        delete userData[currentUserId][oldCategoryName];
+
+    const oldName = currentCategory;
+    if (userData[currentUserId] && userData[currentUserId][oldName]) {
+        userData[currentUserId][newName] = userData[currentUserId][oldName];
+        delete userData[currentUserId][oldName];
         localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
     }
-    
-    currentCategory = newCategoryName;
+
+    currentCategory = newName;
     updateDisplay();
     hideEditCategory();
-    showToast(`"${newCategoryName}" ${t('categoryUpdated')}`);
+    showToast(`"${newName}" ${t('categoryUpdated')}`);
 }
 
-// 현재 카테고리 삭제
 function deleteCurrentCategory() {
     if (currentCategory === 'default') {
         showToast(t('defaultCategoryReserved'));
         return;
     }
-    
     showConfirm(
         t('confirm'),
         `"${currentCategory}" ${t('deleteCategoryConfirm')}`,
@@ -476,16 +515,14 @@ function deleteCurrentCategory() {
                 delete userData[currentUserId][currentCategory];
                 localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
             }
-            
             currentCategory = 'default';
             loadUserData();
             updateDisplay();
-            showToast(`${t('categoryDeleted')}`);
+            showToast(t('categoryDeleted'));
         }
     );
 }
 
-// 현재 카테고리 초기화
 function resetCurrentCategory() {
     showConfirm(
         t('confirm'),
@@ -500,64 +537,53 @@ function resetCurrentCategory() {
     );
 }
 
-// PayPay 앱 실행
+// =========================================
+// PayPay
+// =========================================
 function openPayPay() {
-    // PayPay 앱 스킴 시도
     const payPayScheme = 'paypay://';
     const payPayWebsite = 'https://paypay.ne.jp/';
-    
-    // 모바일에서 앱 실행 시도
+
     if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-        // 앱 실행 시도
         window.location.href = payPayScheme;
-        
-        // 앱이 설치되지 않은 경우 웹사이트로 리다이렉트
         setTimeout(() => {
-            if (!document.hidden) {
-                window.open(payPayWebsite, '_blank');
-            }
+            if (!document.hidden) window.open(payPayWebsite, '_blank');
         }, 1500);
     } else {
-        // PC에서는 바로 웹사이트로 이동
         window.open(payPayWebsite, '_blank');
     }
-    
-    showToast('PayPay 앱을 실행합니다...');
+
+    showToast(t('payPayLaunching'));
 }
 
-// 토스트 메시지 표시
+// =========================================
+// Modals
+// =========================================
 function showToast(message) {
     const toast = document.createElement('div');
     toast.className = 'toast-message';
     toast.textContent = message;
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.classList.add('show');
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => {
-                if (document.body.contains(toast)) {
-                    document.body.removeChild(toast);
-                }
+                if (document.body.contains(toast)) document.body.removeChild(toast);
             }, 300);
         }, 2500);
-    }, 100);
+    }, 50);
 }
 
-// 확인 모달 표시 (줄바꿈 처리 개선)
 function showConfirm(title, message, callback) {
     document.getElementById('confirmTitle').textContent = title;
-    
-    // \\n을 실제 줄바꿈으로 변환
-    const messageElement = document.getElementById('confirmMessage');
-    messageElement.innerHTML = message.replace(/\\n/g, '<br>');
-    
+    const msgEl = document.getElementById('confirmMessage');
+    msgEl.innerHTML = message.replace(/\\n/g, '<br>');
     confirmCallback = callback;
     document.getElementById('confirmModal').style.display = 'flex';
 }
 
-// 확인 액션 실행
 function confirmAction() {
     if (confirmCallback) {
         confirmCallback();
@@ -566,13 +592,14 @@ function confirmAction() {
     closeConfirmModal();
 }
 
-// 확인 모달 닫기
 function closeConfirmModal() {
     document.getElementById('confirmModal').style.display = 'none';
     confirmCallback = null;
 }
 
-// 화면 업데이트 함수들
+// =========================================
+// Display / Render
+// =========================================
 function updateDisplay() {
     updateParticipantsList();
     updatePayerSelects();
@@ -581,154 +608,191 @@ function updateDisplay() {
     updateSettlement();
     updateProfileSelect();
     updateCategorySelect();
+    updateTabBadges();
 }
 
 function updateParticipantsList() {
     const container = document.getElementById('participantsList');
-    
+    if (!container) return;
+
     if (participants.length === 0) {
-        container.innerHTML = `<div class="empty-message">${t('addParticipantFirst')}</div>`;
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">👥</div>
+                <div class="empty-state-text">${t('addParticipantFirst')}</div>
+            </div>`;
         return;
     }
-    
+
     container.innerHTML = participants.map(participant => `
-        <div class="tag">
-            <span>${participant}</span>
-            <button onclick="removeParticipant('${participant}')" class="tag-remove" title="${t('delete')}">×</button>
+        <div class="participant-chip">
+            <span>${escapeHtml(participant)}</span>
+            <button onclick="removeParticipant('${escapeAttr(participant)}')" class="chip-remove" title="${t('delete')}">×</button>
         </div>
     `).join('');
 }
 
 function updatePayerSelects() {
-    // 지출 추가 폼의 선택박스
     const select = document.getElementById('expensePayer');
+    if (!select) return;
     const currentValue = select.value;
-    
+
     select.innerHTML = `<option value="">${t('payer')}</option>` +
-        participants.map(participant => 
-            `<option value="${participant}" ${participant === currentValue ? 'selected' : ''}>${participant}</option>`
+        participants.map(p =>
+            `<option value="${escapeAttr(p)}" ${p === currentValue ? 'selected' : ''}>${escapeHtml(p)}</option>`
         ).join('');
 }
 
 function updateExpensesList() {
     const container = document.getElementById('expensesList');
-    
+    if (!container) return;
+
     if (expenses.length === 0) {
-        container.innerHTML = `<div class="empty-message">${t('noExpenses')}</div>`;
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">💸</div>
+                <div class="empty-state-text">${t('noExpenses')}</div>
+                <div class="empty-state-hint">${participants.length === 0 ? t('addParticipantFirst') : ''}</div>
+            </div>`;
         return;
     }
-    
+
     container.innerHTML = expenses.map(expense => `
-        <div class="expense-item" onclick="showExpenseDetail(${expense.id})">
-            <div class="expense-info">
-                <div class="expense-name">${expense.name}</div>
-                <div class="expense-details">${expense.payer}${expense.memo ? ' • ' + expense.memo : ''}</div>
+        <div class="expense-card" onclick="showExpenseDetail(${expense.id})">
+            <div class="expense-card-left">
+                <div class="expense-card-name">${escapeHtml(expense.name)}</div>
+                <div class="expense-card-meta">
+                    <span class="expense-payer-badge">${escapeHtml(expense.payer)}</span>
+                    ${expense.memo ? `<span>· ${escapeHtml(expense.memo)}</span>` : ''}
+                </div>
             </div>
-            <div class="expense-actions">
-                <div class="expense-amount">${formatCurrency(expense.amount)}</div>
-                <button onclick="event.stopPropagation(); removeExpense(${expense.id})" class="btn-delete" title="${t('delete')}">×</button>
+            <div class="expense-card-right">
+                <div class="expense-card-amount">${formatCurrency(expense.amount)}</div>
+                <button
+                    onclick="event.stopPropagation(); removeExpense(${expense.id})"
+                    class="btn-expense-delete"
+                    title="${t('delete')}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
             </div>
         </div>
     `).join('');
 }
 
 function updateSummary() {
-    const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const participantCount = participants.length;
-    const perPersonAmount = participantCount > 0 ? totalAmount / participantCount : 0;
-    
-    document.getElementById('totalAmount').textContent = formatCurrency(totalAmount);
-    document.getElementById('participantCountText').innerHTML = `${participantCount}<span data-i18n="people">${t('people')}</span>`;
-    document.getElementById('perPersonAmount').textContent = formatCurrency(perPersonAmount);
+    const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const count = participants.length;
+    const perPerson = count > 0 ? totalAmount / count : 0;
+
+    const totalEl = document.getElementById('totalAmount');
+    const countEl = document.getElementById('participantCountText');
+    const perPersonEl = document.getElementById('perPersonAmount');
+
+    if (totalEl) totalEl.textContent = formatCurrency(totalAmount);
+    if (countEl) countEl.innerHTML = `${count}<span data-i18n="people">${t('people')}</span>`;
+    if (perPersonEl) perPersonEl.textContent = formatCurrency(perPerson);
 }
 
 function updateSettlement() {
     const container = document.getElementById('settlementResults');
     const paypaySection = document.getElementById('paypayActions');
-    
+    if (!container) return;
+
     if (participants.length < 2 || expenses.length === 0) {
-        container.innerHTML = `<div class="empty-message">${t('noSettlement')}</div>`;
-        paypaySection.style.display = 'none';
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <div class="empty-state-text">${t('noSettlement')}</div>
+                <div class="empty-state-hint">${participants.length < 2 ? t('addParticipantFirst') : t('noExpenses')}</div>
+            </div>`;
+        if (paypaySection) paypaySection.style.display = 'none';
         return;
     }
-    
-    const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const perPersonAmount = totalAmount / participants.length;
-    
-    // 각 참가자별 지불 금액 계산
-    const paymentsByParticipant = {};
-    participants.forEach(participant => {
-        paymentsByParticipant[participant] = 0;
+
+    const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const perPerson = totalAmount / participants.length;
+
+    // Calculate payments per person
+    const paid = {};
+    participants.forEach(p => { paid[p] = 0; });
+    expenses.forEach(e => {
+        if (paid.hasOwnProperty(e.payer)) paid[e.payer] += e.amount;
     });
-    
-    expenses.forEach(expense => {
-        if (paymentsByParticipant.hasOwnProperty(expense.payer)) {
-            paymentsByParticipant[expense.payer] += expense.amount;
-        }
-    });
-    
-    // 각 참가자별 정산 금액 계산
+
+    // Balances: positive = owes money, negative = is owed money
     const balances = {};
-    participants.forEach(participant => {
-        balances[participant] = perPersonAmount - paymentsByParticipant[participant];
+    participants.forEach(p => { balances[p] = perPerson - paid[p]; });
+
+    const debtors = [];   // people who owe (balance > 0)
+    const creditors = []; // people who are owed (balance < 0)
+
+    Object.entries(balances).forEach(([name, balance]) => {
+        if (balance > 0.5)       debtors.push({ name, amount: balance });
+        else if (balance < -0.5) creditors.push({ name, amount: -balance });
     });
-    
-    // 채무자와 채권자 분리
-    const debtors = [];
-    const creditors = [];
-    
-    Object.entries(balances).forEach(([participant, balance]) => {
-        if (balance > 0.5) {
-            creditors.push({ name: participant, amount: balance });
-        } else if (balance < -0.5) {
-            debtors.push({ name: participant, amount: -balance });
-        }
-    });
-    
-    // 정산 결과 계산
+
+    // Minimize transactions
     const settlements = [];
-    const sortedCreditors = [...creditors].sort((a, b) => b.amount - a.amount);
     const sortedDebtors = [...debtors].sort((a, b) => b.amount - a.amount);
-    
-    let debtorIndex = 0;
-    let creditorIndex = 0;
-    
-    while (debtorIndex < sortedDebtors.length && creditorIndex < sortedCreditors.length) {
-        const debtor = sortedDebtors[debtorIndex];
-        const creditor = sortedCreditors[creditorIndex];
-        
-        const settlementAmount = Math.min(debtor.amount, creditor.amount);
-        
-        settlements.push({
-            from: creditor.name,
-            to: debtor.name,
-            amount: settlementAmount
-        });
-        
-        debtor.amount -= settlementAmount;
-        creditor.amount -= settlementAmount;
-        
-        if (debtor.amount < 0.5) {
-            debtorIndex++;
-        }
-        if (creditor.amount < 0.5) {
-            creditorIndex++;
-        }
+    const sortedCreditors = [...creditors].sort((a, b) => b.amount - a.amount);
+
+    let di = 0, ci = 0;
+    while (di < sortedDebtors.length && ci < sortedCreditors.length) {
+        const debtor = sortedDebtors[di];
+        const creditor = sortedCreditors[ci];
+        const amt = Math.min(debtor.amount, creditor.amount);
+
+        settlements.push({ from: debtor.name, to: creditor.name, amount: amt });
+
+        debtor.amount -= amt;
+        creditor.amount -= amt;
+
+        if (debtor.amount < 0.5) di++;
+        if (creditor.amount < 0.5) ci++;
     }
-    
-    // 정산 결과 표시
+
     if (settlements.length === 0) {
-        container.innerHTML = `<div class="empty-message">${t('allSettled')}</div>`;
-        paypaySection.style.display = 'none';
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🎉</div>
+                <div class="empty-state-text">${t('allSettled')}</div>
+            </div>`;
+        if (paypaySection) paypaySection.style.display = 'none';
     } else {
-        container.innerHTML = settlements.map(settlement => `
-            <div class="settlement-item">
-                <div class="settlement-text">
-                    <strong>${settlement.from}</strong> → <strong>${settlement.to}</strong>
+        container.innerHTML = settlements.map(s => `
+            <div class="settlement-card">
+                <div class="settlement-from">${escapeHtml(s.from)}</div>
+                <div class="settlement-arrow">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                        <polyline points="12 5 19 12 12 19"/>
+                    </svg>
                 </div>
-                <div class="settlement-amount">${formatCurrency(settlement.amount)}</div>
+                <div class="settlement-to">${escapeHtml(s.to)}</div>
+                <div class="settlement-amount-badge">${formatCurrency(s.amount)}</div>
             </div>
         `).join('');
-        paypaySection.style.display = 'block';
+        if (paypaySection) paypaySection.style.display = 'block';
     }
+}
+
+// =========================================
+// Utility
+// =========================================
+function escapeHtml(str) {
+    if (typeof str !== 'string') return String(str);
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function escapeAttr(str) {
+    if (typeof str !== 'string') return String(str);
+    return str.replace(/'/g, "\\'");
 }
